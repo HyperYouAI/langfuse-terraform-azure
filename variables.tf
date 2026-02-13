@@ -153,6 +153,17 @@ variable "langfuse_helm_chart_version" {
   default     = "1.5.14"
 }
 
+variable "custom_tls_certificate_path" {
+  description = "Path to the custom TLS certificate in .pfx format(cert + key) to use for the Application Gateway. The certificate will be uploaded to Key Vault and used for TLS termination at the Application Gateway. If not provided, a self-signed certificate will be generated and used. https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_certificate.html#certificate-1"
+  type        = string
+}
+
+variable "custom_tls_certificate_password" {
+  description = "Password for the custom TLS certificate provided in 'custom_tls_certificate_path'. This is required to read the .pfx file and upload it to Key Vault. If 'custom_tls_certificate_path' is not provided, this variable is ignored."
+  type        = string
+  sensitive   = true
+}
+
 variable "additional_env" {
   description = "Additional environment variables to pass to the Langfuse deployment"
   type = list(object({

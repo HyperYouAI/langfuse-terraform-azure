@@ -97,52 +97,14 @@ resource "azurerm_key_vault_certificate" "this" {
   name         = module.naming.key_vault_certificate.name
   key_vault_id = azurerm_key_vault.this.id
 
-  certificate_policy {
-    issuer_parameters {
-      name = "Self"
-    }
-
-    key_properties {
-      exportable = true
-      key_size   = 2048
-      key_type   = "RSA"
-      reuse_key  = true
-    }
-
-    lifetime_action {
-      action {
-        action_type = "AutoRenew"
-      }
-
-      trigger {
-        days_before_expiry = 30
-      }
-    }
-
-    secret_properties {
-      content_type = "application/x-pkcs12"
-    }
-
-    x509_certificate_properties {
-      extended_key_usage = ["1.3.6.1.5.5.7.3.1"]
-
-      key_usage = [
-        "digitalSignature",
-        "keyEncipherment"
-      ]
-
-      subject            = "CN=${var.domain}"
-      validity_in_months = 12
-
-      subject_alternative_names {
-        dns_names = [var.domain]
-      }
-    }
+  certificate {
+    contents = filebase64("${var.custom_tls_certificate_path}")
+    password = var.custom_tls_certificate_password
   }
 
   depends_on = [
-    azurerm_key_vault_access_policy.this, 
+    azurerm_key_vault_access_policy.this,
     azurerm_key_vault_access_policy.appgw,
     azurerm_dns_zone.this
-    ]
+  ]
 }
