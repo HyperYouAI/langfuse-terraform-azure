@@ -1,5 +1,5 @@
 locals {
-  langfuse_values   = <<EOT
+  langfuse_values       = <<EOT
 langfuse:
   salt:
     secretKeyRef:
@@ -21,6 +21,8 @@ postgresql:
     secretKeys:
       userPasswordKey: postgres-password
 clickhouse:
+  persistence:
+    size: ${var.clickhouse_disk_size_gb}Gi
   auth:
     existingSecret: langfuse
     existingSecretKey: clickhouse-password
@@ -53,7 +55,7 @@ s3:
   mediaUpload:
     prefix: "media/"
 EOT
-  encryption_values = var.use_encryption_key == false ? "" : <<EOT
+  encryption_values     = var.use_encryption_key == false ? "" : <<EOT
 langfuse:
   encryptionKey:
     secretKeyRef:

@@ -164,6 +164,12 @@ variable "custom_tls_certificate_password" {
   sensitive   = true
 }
 
+variable "clickhouse_disk_size_gb" {
+  description = "Disk size in GB for ClickHouse stateful storage"
+  type        = number
+  default     = 8
+}
+
 variable "additional_env" {
   description = "Additional environment variables to pass to the Langfuse deployment"
   type = list(object({
