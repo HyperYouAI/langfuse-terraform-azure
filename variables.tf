@@ -174,6 +174,11 @@ variable "clickhouse_system_log_ttl_days" {
   description = "Retention in days for ClickHouse system.*_log tables. Applied via server config, so it survives pod recreation."
   type        = number
   default     = 14
+
+  validation {
+    condition     = var.clickhouse_system_log_ttl_days == floor(var.clickhouse_system_log_ttl_days) && var.clickhouse_system_log_ttl_days >= 1
+    error_message = "clickhouse_system_log_ttl_days must be a whole number of at least 1."
+  }
 }
 
 variable "additional_env" {

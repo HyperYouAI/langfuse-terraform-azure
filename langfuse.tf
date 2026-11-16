@@ -1,4 +1,25 @@
 locals {
+  # Default-enabled ClickHouse system log tables and the column their TTL is keyed on.
+  # Verified against ClickHouse source: event_date everywhere except opentelemetry_span_log.
+  clickhouse_system_log_time_columns = {
+    asynchronous_metric_log      = "event_date"
+    error_log                    = "event_date"
+    latency_log                  = "event_date"
+    metric_log                   = "event_date"
+    part_log                     = "event_date"
+    query_log                    = "event_date"
+    query_metric_log             = "event_date"
+    text_log                     = "event_date"
+    trace_log                    = "event_date"
+    query_thread_log             = "event_date"
+    query_views_log              = "event_date"
+    processors_profile_log       = "event_date"
+    asynchronous_insert_log      = "event_date"
+    background_schedule_pool_log = "event_date"
+    crash_log                    = "event_date"
+    opentelemetry_span_log       = "finish_date"
+  }
+
   langfuse_values       = <<EOT
 langfuse:
   salt:
@@ -33,56 +54,13 @@ clickhouse:
       <merge_tree>
         <ttl_only_drop_parts>1</ttl_only_drop_parts>
       </merge_tree>
-      <asynchronous_metric_log>
+%{for name, column in local.clickhouse_system_log_time_columns}
+      <${name}>
         <database>system</database>
-        <table>asynchronous_metric_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </asynchronous_metric_log>
-      <error_log>
-        <database>system</database>
-        <table>error_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </error_log>
-      <latency_log>
-        <database>system</database>
-        <table>latency_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </latency_log>
-      <metric_log>
-        <database>system</database>
-        <table>metric_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </metric_log>
-      <part_log>
-        <database>system</database>
-        <table>part_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </part_log>
-      <query_log>
-        <database>system</database>
-        <table>query_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </query_log>
-      <query_metric_log>
-        <database>system</database>
-        <table>query_metric_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </query_metric_log>
-      <text_log>
-        <database>system</database>
-        <table>text_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </text_log>
-      <trace_log>
-        <database>system</database>
-        <table>trace_log</table>
-        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </trace_log>
-      <opentelemetry_span_log>
-        <database>system</database>
-        <table>opentelemetry_span_log</table>
-        <ttl>finish_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
-      </opentelemetry_span_log>
+        <table>${name}</table>
+        <ttl>${column} + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </${name}>
+%{endfor}
     </clickhouse>
 redis:
   deploy: false
