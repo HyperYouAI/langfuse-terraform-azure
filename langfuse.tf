@@ -1,23 +1,69 @@
 locals {
-  # Default-enabled ClickHouse system log tables and the column their TTL is keyed on.
-  # Verified against ClickHouse source: event_date everywhere except opentelemetry_span_log.
-  clickhouse_system_log_time_columns = {
-    asynchronous_metric_log      = "event_date"
-    error_log                    = "event_date"
-    latency_log                  = "event_date"
-    metric_log                   = "event_date"
-    part_log                     = "event_date"
-    query_log                    = "event_date"
-    query_metric_log             = "event_date"
-    text_log                     = "event_date"
-    trace_log                    = "event_date"
-    query_thread_log             = "event_date"
-    query_views_log              = "event_date"
-    processors_profile_log       = "event_date"
-    asynchronous_insert_log      = "event_date"
-    background_schedule_pool_log = "event_date"
-    crash_log                    = "event_date"
-    opentelemetry_span_log       = "finish_date"
+  # The 12 system log tables that exist on the deployed ClickHouse (25.2.1), with the
+  # PARTITION BY and ORDER BY copied from the live definitions (read from all 3 US pods, identical).
+  # Keeping them identical means the override does not change the table structure, so ClickHouse
+  # does not rename the tables to *_0. Only the TTL and SETTINGS are added by the template below.
+  clickhouse_system_log_engines = {
+    asynchronous_insert_log = {
+      partition  = "event_date"
+      order_by   = "(database, `table`, event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    asynchronous_metric_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(metric, event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    error_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    latency_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    metric_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    opentelemetry_span_log = {
+      partition  = "toYYYYMM(finish_date)"
+      order_by   = "(finish_date, finish_time_us, trace_id)"
+      ttl_column = "finish_date"
+    }
+    part_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    processors_profile_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    query_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    query_metric_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    text_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    trace_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
   }
 
   langfuse_values       = <<EOT
@@ -49,16 +95,15 @@ clickhouse:
     existingSecretKey: clickhouse-password
   # Server config for ClickHouse system log retention. Survives pod recreation.
   # Without it the TTL is lost and system.*_log grows without bound (SRE-505).
+  # Each engine repeats the live PARTITION BY / ORDER BY and adds the TTL and ttl_only_drop_parts.
+  # ttl_only_drop_parts is set per table here, so it does not change Langfuse's own tables.
   extraOverrides: |
     <clickhouse>
-      <merge_tree>
-        <ttl_only_drop_parts>1</ttl_only_drop_parts>
-      </merge_tree>
-%{for name, column in local.clickhouse_system_log_time_columns}
+%{for name, e in local.clickhouse_system_log_engines}
       <${name}>
         <database>system</database>
         <table>${name}</table>
-        <ttl>${column} + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+        <engine>ENGINE = MergeTree PARTITION BY ${e.partition} ORDER BY ${e.order_by} TTL ${e.ttl_column} + toIntervalDay(${var.clickhouse_system_log_ttl_days}) SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1</engine>
       </${name}>
 %{endfor}
     </clickhouse>
