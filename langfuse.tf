@@ -26,6 +26,64 @@ clickhouse:
   auth:
     existingSecret: langfuse
     existingSecretKey: clickhouse-password
+  # Server config for ClickHouse system log retention. Survives pod recreation.
+  # Without it the TTL is lost and system.*_log grows without bound (SRE-505).
+  extraOverrides: |
+    <clickhouse>
+      <merge_tree>
+        <ttl_only_drop_parts>1</ttl_only_drop_parts>
+      </merge_tree>
+      <asynchronous_metric_log>
+        <database>system</database>
+        <table>asynchronous_metric_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </asynchronous_metric_log>
+      <error_log>
+        <database>system</database>
+        <table>error_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </error_log>
+      <latency_log>
+        <database>system</database>
+        <table>latency_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </latency_log>
+      <metric_log>
+        <database>system</database>
+        <table>metric_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </metric_log>
+      <part_log>
+        <database>system</database>
+        <table>part_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </part_log>
+      <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </query_log>
+      <query_metric_log>
+        <database>system</database>
+        <table>query_metric_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </query_metric_log>
+      <text_log>
+        <database>system</database>
+        <table>text_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </text_log>
+      <trace_log>
+        <database>system</database>
+        <table>trace_log</table>
+        <ttl>event_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </trace_log>
+      <opentelemetry_span_log>
+        <database>system</database>
+        <table>opentelemetry_span_log</table>
+        <ttl>finish_date + INTERVAL ${var.clickhouse_system_log_ttl_days} DAY DELETE</ttl>
+      </opentelemetry_span_log>
+    </clickhouse>
 redis:
   deploy: false
   host: ${azurerm_redis_cache.this.name}.redis.cache.windows.net

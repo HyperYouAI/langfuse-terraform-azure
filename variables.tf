@@ -170,6 +170,12 @@ variable "clickhouse_disk_size_gb" {
   default     = 8
 }
 
+variable "clickhouse_system_log_ttl_days" {
+  description = "Retention in days for ClickHouse system.*_log tables. Applied via server config, so it survives pod recreation."
+  type        = number
+  default     = 14
+}
+
 variable "additional_env" {
   description = "Additional environment variables to pass to the Langfuse deployment"
   type = list(object({
