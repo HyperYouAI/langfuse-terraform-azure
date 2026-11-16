@@ -66,6 +66,15 @@ locals {
     }
   }
 
+  # Per-table exceptions. asynchronous_insert_log keeps its live 3-day TTL and live settings
+  # (no ttl_only_drop_parts), so its definition is unchanged and ClickHouse does not rebuild it.
+  clickhouse_system_log_ttl_days_overrides = {
+    asynchronous_insert_log = 3
+  }
+  clickhouse_system_log_settings_overrides = {
+    asynchronous_insert_log = "index_granularity = 8192"
+  }
+
   langfuse_values       = <<EOT
 langfuse:
   salt:
@@ -103,7 +112,7 @@ clickhouse:
       <${name}>
         <database>system</database>
         <table>${name}</table>
-        <engine>ENGINE = MergeTree PARTITION BY ${e.partition} ORDER BY ${e.order_by} TTL ${e.ttl_column} + toIntervalDay(${var.clickhouse_system_log_ttl_days}) SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1</engine>
+        <engine>ENGINE = MergeTree PARTITION BY ${e.partition} ORDER BY ${e.order_by} TTL ${e.ttl_column} + toIntervalDay(${lookup(local.clickhouse_system_log_ttl_days_overrides, name, var.clickhouse_system_log_ttl_days)}) SETTINGS ${lookup(local.clickhouse_system_log_settings_overrides, name, "index_granularity = 8192, ttl_only_drop_parts = 1")}</engine>
       </${name}>
 %{endfor}
     </clickhouse>
