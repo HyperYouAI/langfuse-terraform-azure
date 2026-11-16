@@ -176,8 +176,8 @@ variable "clickhouse_system_log_ttl_days" {
   default     = 14
 
   validation {
-    condition     = var.clickhouse_system_log_ttl_days == floor(var.clickhouse_system_log_ttl_days) && var.clickhouse_system_log_ttl_days >= 1
-    error_message = "clickhouse_system_log_ttl_days must be a whole number of at least 1."
+    condition     = var.clickhouse_system_log_ttl_days == floor(var.clickhouse_system_log_ttl_days) && var.clickhouse_system_log_ttl_days >= 1 && var.clickhouse_system_log_ttl_days <= 365
+    error_message = "clickhouse_system_log_ttl_days must be a whole number from 1 to 365."
   }
 }
 
