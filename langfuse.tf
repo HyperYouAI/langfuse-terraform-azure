@@ -1,8 +1,12 @@
 locals {
   # The 12 system log tables that exist on the deployed ClickHouse (25.2.1), with the
-  # PARTITION BY and ORDER BY copied from the live definitions (read from all 3 US pods, identical).
-  # Keeping them identical means the override does not change the table structure, so ClickHouse
-  # does not rename the tables to *_0. Only the TTL and SETTINGS are added by the template below.
+  # PARTITION BY and ORDER BY copied from the live definitions (read from all 3 pods in US and CA,
+  # identical). The template below adds the TTL and SETTINGS.
+  # ClickHouse rebuilds a system log table, renaming the old one to *_N, when the configured engine
+  # differs from the existing one in any clause, TTL and SETTINGS included. A table whose live
+  # definition already equals the rendered engine is expected to keep its name. Any other table is
+  # rebuilt on the first apply (for example processors_profile_log, which has a 30-day TTL by default).
+  # Re-check this map against system.tables on a ClickHouse upgrade.
   clickhouse_system_log_engines = {
     asynchronous_insert_log = {
       partition  = "event_date"
