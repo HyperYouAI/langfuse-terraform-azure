@@ -1,4 +1,84 @@
 locals {
+  # The 12 system log tables that exist on the deployed ClickHouse (25.2.1), with the
+  # PARTITION BY and ORDER BY copied from the live definitions (read from all 3 pods in US and CA,
+  # identical). The template below adds the TTL and SETTINGS.
+  # ClickHouse rebuilds a system log table, renaming the old one to *_N, when the configured engine
+  # differs from the existing one in any clause, TTL and SETTINGS included. A table whose live
+  # definition already equals the rendered engine is expected to keep its name. Any other table is
+  # rebuilt on the first apply (for example processors_profile_log, which has a 30-day TTL by default).
+  # Re-check this map against system.tables on a ClickHouse upgrade.
+  clickhouse_system_log_engines = {
+    asynchronous_insert_log = {
+      partition  = "event_date"
+      order_by   = "(database, `table`, event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    asynchronous_metric_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(metric, event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    error_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    latency_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    metric_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    opentelemetry_span_log = {
+      partition  = "toYYYYMM(finish_date)"
+      order_by   = "(finish_date, finish_time_us, trace_id)"
+      ttl_column = "finish_date"
+    }
+    part_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    processors_profile_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    query_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    query_metric_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    text_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+    trace_log = {
+      partition  = "toYYYYMM(event_date)"
+      order_by   = "(event_date, event_time)"
+      ttl_column = "event_date"
+    }
+  }
+
+  # Per-table exceptions. asynchronous_insert_log keeps its live 3-day TTL and live settings
+  # (no ttl_only_drop_parts), so its definition is unchanged and ClickHouse does not rebuild it.
+  clickhouse_system_log_ttl_days_overrides = {
+    asynchronous_insert_log = 3
+  }
+  clickhouse_system_log_settings_overrides = {
+    asynchronous_insert_log = "index_granularity = 8192"
+  }
+
   langfuse_values       = <<EOT
 langfuse:
   salt:
@@ -26,6 +106,20 @@ clickhouse:
   auth:
     existingSecret: langfuse
     existingSecretKey: clickhouse-password
+  # Server config for ClickHouse system log retention. Survives pod recreation.
+  # Without it the TTL is lost and system.*_log grows without bound (SRE-505).
+  # Each engine repeats the live PARTITION BY / ORDER BY and adds the TTL and ttl_only_drop_parts.
+  # ttl_only_drop_parts is set per table here, so it does not change Langfuse's own tables.
+  extraOverrides: |
+    <clickhouse>
+%{for name, e in local.clickhouse_system_log_engines}
+      <${name}>
+        <database>system</database>
+        <table>${name}</table>
+        <engine>ENGINE = MergeTree PARTITION BY ${e.partition} ORDER BY ${e.order_by} TTL ${e.ttl_column} + toIntervalDay(${lookup(local.clickhouse_system_log_ttl_days_overrides, name, var.clickhouse_system_log_ttl_days)}) SETTINGS ${lookup(local.clickhouse_system_log_settings_overrides, name, "index_granularity = 8192, ttl_only_drop_parts = 1")}</engine>
+      </${name}>
+%{endfor}
+    </clickhouse>
 redis:
   deploy: false
   host: ${azurerm_redis_cache.this.name}.redis.cache.windows.net
