@@ -106,6 +106,19 @@ clickhouse:
   auth:
     existingSecret: langfuse
     existingSecretKey: clickhouse-password
+  # ZooKeeper runs a 1024 MB heap (ZOO_HEAP_SIZE). The chart's default "micro" preset caps it at
+  # 384Mi, so it gets OOMKilled and ClickHouse loses quorum. These match what both regions ran
+  # with (set by hand Apr 2026) before a Helm upgrade reset them on 2026-11-25.
+  zookeeper:
+    resources:
+      requests:
+        cpu: 250m
+        ephemeral-storage: 50Mi
+        memory: 1536Mi
+      limits:
+        cpu: 375m
+        ephemeral-storage: 2Gi
+        memory: 2Gi
   # Server config for ClickHouse system log retention. Survives pod recreation.
   # Without it the TTL is lost and system.*_log grows without bound (SRE-505).
   # Each engine repeats the live PARTITION BY / ORDER BY and adds the TTL and ttl_only_drop_parts.
