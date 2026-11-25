@@ -107,4 +107,14 @@ resource "azurerm_key_vault_certificate" "this" {
     azurerm_key_vault_access_policy.appgw,
     azurerm_dns_zone.this
   ]
+
+  lifecycle {
+    # The .pfx is gitignored, so each operator's local copy can differ from the
+    # live cert (re-exports never match byte-for-byte, and stale copies roll it
+    # back). To rotate, import a new version:
+    #   az keyvault certificate import --vault-name <kv> -n <cert> -f new.pfx --password ...
+    # App Gateway uses the versionless secret ID, so it picks the new version up.
+    # Don't use -replace: purge protection blocks the delete-and-recreate.
+    ignore_changes = [certificate]
+  }
 }
