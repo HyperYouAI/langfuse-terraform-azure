@@ -161,6 +161,38 @@ The module creates a complete Langfuse stack with the following Azure components
 - Optional DDoS Protection Plan
 - Optional encryption key for LLM API credentials
 
+## TLS certificate
+
+Terraform uploads the certificate once, on first apply, from `custom_tls_certificate_path` (a password-protected `.pfx`, password in `custom_tls_certificate_password`). After that, the module ignores changes to the certificate contents, so a stale or re-exported local `.pfx` can't overwrite the live cert.
+
+`plan`/`apply` still need a file at `custom_tls_certificate_path`, because `filebase64()` is evaluated either way. It doesn't have to be the current cert.
+
+### Rotating the certificate
+
+Rotate outside Terraform by importing a new version into the existing Key Vault certificate:
+
+1. Create the new cert and export it as a `.pfx` with a password.
+2. Import it as a new version of the same certificate:
+   ```
+   az keyvault certificate import --vault-name <key vault> -n <certificate name> \
+     -f <name>.pfx --password '<export password>'
+   ```
+   The caller needs `Import` permission on certificates in the vault's access policies.
+3. Application Gateway references the certificate's versionless secret ID, so it picks up the new version on its own (Azure polls about every 4 hours). To switch sooner, restart the Langfuse deployments:
+   ```
+   kubectl rollout restart deployment/langfuse-web -n langfuse
+   kubectl rollout restart deployment/langfuse-worker -n langfuse
+   ```
+4. Check the served certificate:
+   ```
+   openssl s_client -connect <domain>:443 -servername <domain> </dev/null 2>/dev/null \
+     | openssl x509 -noout -fingerprint -sha1 -enddate
+   ```
+5. Store the new `.pfx` and its password wherever your team keeps them, and update `custom_tls_certificate_password` to match.
+6. Optional: disable the old certificate versions in Key Vault. Running `terraform plan` afterwards refreshes the certificate's version and thumbprint in state and shows no change.
+
+Don't rotate with `terraform apply -replace` on `azurerm_key_vault_certificate.this`. The vault has purge protection, so deleting and recreating a certificate with the same name doesn't work cleanly.
+
 ## Requirements
 
 | Name       | Version |
