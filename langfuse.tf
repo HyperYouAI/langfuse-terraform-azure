@@ -110,12 +110,20 @@ clickhouse:
   # Without it the TTL is lost and system.*_log grows without bound (SRE-505).
   # Each engine repeats the live PARTITION BY / ORDER BY and adds the TTL and ttl_only_drop_parts.
   # ttl_only_drop_parts is set per table here, so it does not change Langfuse's own tables.
+  # The remove="1" lines are required: ClickHouse merges this file into its default config.xml,
+  # which already sets partition_by (and ttl on some tables). ClickHouse refuses to start if
+  # engine is combined with any of partition_by/ttl/order_by/storage_policy/settings (Code 36).
   extraOverrides: |
     <clickhouse>
 %{for name, e in local.clickhouse_system_log_engines}
       <${name}>
         <database>system</database>
         <table>${name}</table>
+        <partition_by remove="1"/>
+        <ttl remove="1"/>
+        <order_by remove="1"/>
+        <storage_policy remove="1"/>
+        <settings remove="1"/>
         <engine>ENGINE = MergeTree PARTITION BY ${e.partition} ORDER BY ${e.order_by} TTL ${e.ttl_column} + toIntervalDay(${lookup(local.clickhouse_system_log_ttl_days_overrides, name, var.clickhouse_system_log_ttl_days)}) SETTINGS ${lookup(local.clickhouse_system_log_settings_overrides, name, "index_granularity = 8192, ttl_only_drop_parts = 1")}</engine>
       </${name}>
 %{endfor}
