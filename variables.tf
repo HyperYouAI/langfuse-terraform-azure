@@ -57,6 +57,18 @@ variable "kubernetes_version" {
   default     = "1.32"
 }
 
+variable "oidc_issuer_enabled" {
+  description = "Enable the AKS OIDC issuer. Can't be disabled once enabled on a cluster."
+  type        = bool
+  default     = true
+}
+
+variable "workload_identity_enabled" {
+  description = "Enable AKS workload identity. Requires oidc_issuer_enabled."
+  type        = bool
+  default     = true
+}
+
 variable "aks_service_cidr" {
   type        = string
   description = "The Network Range used by the Kubernetes service."

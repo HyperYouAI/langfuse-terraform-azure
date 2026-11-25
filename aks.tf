@@ -30,6 +30,10 @@ resource "azurerm_kubernetes_cluster" "this" {
   dns_prefix          = var.name
   kubernetes_version  = var.kubernetes_version
 
+  # AKS can't turn the OIDC issuer off once it's on, so this is effectively one-way.
+  oidc_issuer_enabled       = var.oidc_issuer_enabled
+  workload_identity_enabled = var.workload_identity_enabled
+
   default_node_pool {
     name                        = "default"
     vm_size                     = var.node_pool_vm_size
@@ -63,6 +67,18 @@ resource "azurerm_kubernetes_cluster" "this" {
     # https://github.com/hashicorp/terraform-provider-azurerm/issues/22831
     # and better control when the AGW is actually created.
     gateway_id = azurerm_application_gateway.this.id
+  }
+
+  lifecycle {
+    # Enabled outside Terraform on the live clusters (Defender for Containers,
+    # Container Insights, managed Prometheus, portal upgrades). Terraform would
+    # otherwise strip them on every apply.
+    ignore_changes = [
+      microsoft_defender,
+      oms_agent,
+      monitor_metrics,
+      upgrade_override,
+    ]
   }
 }
 

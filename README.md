@@ -210,6 +210,8 @@ The module creates a complete Langfuse stack with the following Azure components
 | redis_subnet_address_prefix       | Redis subnet address prefix                   | string | "10.226.1.0/24"      |    no    |
 | storage_subnet_address_prefix     | Storage subnet address prefix                 | string | "10.226.2.0/24"      |    no    |
 | kubernetes_version                | Kubernetes version for AKS cluster            | string | "1.32"               |    no    |
+| oidc_issuer_enabled               | Enable AKS OIDC issuer (one-way once enabled) | bool   | true                 |    no    |
+| workload_identity_enabled         | Enable AKS workload identity                  | bool   | true                 |    no    |
 | aks_service_cidr                  | Network range used by Kubernetes service      | string | "192.168.0.0/20"     |    no    |
 | aks_dns_service_ip                | IP address for cluster service discovery      | string | "192.168.0.10"       |    no    |
 | use_encryption_key                | Whether to use encryption key for credentials | bool   | true                 |    no    |

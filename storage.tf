@@ -34,6 +34,14 @@ resource "azurerm_storage_account" "this" {
     default_action             = "Deny"
     virtual_network_subnet_ids = [azurerm_subnet.storage.id]
   }
+
+  lifecycle {
+    # Defender for Storage adds a resource access rule for its data scanner
+    # (Microsoft.Security/datascanners/storageDataScanner). Don't strip it.
+    ignore_changes = [
+      network_rules[0].private_link_access,
+    ]
+  }
 }
 
 resource "azurerm_storage_container" "this" {
